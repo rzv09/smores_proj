@@ -26,6 +26,7 @@ def plot_preds_from_device(prediction, truth, filename_prefix='plot', save_dir='
     plt.figure(figsize=(10, 5))
     plt.plot(truth_np, label='Actual')
     plt.plot(prediction_np, label='Predicted')
+    plt.title(filename_prefix)
     plt.legend()
 
     # Save plot as PNG

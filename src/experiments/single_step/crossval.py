@@ -10,9 +10,12 @@ import data_processing.three_oec.process_3oec as process_3oec
 import data_processing.three_oec.sequences_3oec as sequences_3oec 
 import models.lstm.single_step as lstm_single_step
 import plotting.plot_preds
+import utils
+import utils.set_seeds
 class CrossVal():
-    def __init__(self, data_path, sampling_freq, sequence_len, device):
+    def __init__(self, data_path, num_train_epochs, sampling_freq, sequence_len, device):
         self.data_path = data_path
+        self.num_train_epochs = num_train_epochs
         self.sampling_freq = sampling_freq
         self.sequence_len = sequence_len
         self.device = device
@@ -51,7 +54,20 @@ class CrossVal():
         if model_label == 'model_1':
             self.train_seq = self.seq1_tensor
             self.train_lbls = self.labels1_tensor
+        elif model_label == 'model_2':
+            self.train_seq = self.seq2_tensor
+            self.train_lbls = self.labels2_tensor
+        elif model_label == 'model_3':
+            self.train_seq = self.seq3_tensor
+            self.train_lbls = self.labels3_tensor
+        elif model_label == 'model_4':
+            self.train_seq = self.seq4_tensor
+            self.train_lbls = self.labels4_tensor
+        else:
+            return False
+
         return 1
+    
     def train_model(self, num_epochs: int,
                      model_label: str):
         """
@@ -85,7 +101,8 @@ class CrossVal():
         
         return model
     
-    def test_model(self, model: nn.Module, model_lbl: str):
+    def test_model(self, model: nn.Module, test_seq: torch.FloatTensor, test_lbl: torch.FloatTensor,
+                   prefix: str):
         """
         Test a trained model
 
@@ -98,8 +115,8 @@ class CrossVal():
         preds = []
         model.eval()
         # temp; will remove
-        test_seq = self.train_seq
-        test_lbl = self.train_lbls
+        # test_seq = self.train_seq
+        # test_lbl = self.train_lbls
         
         with torch.no_grad():
             for i in range(len(test_seq)):
@@ -110,9 +127,39 @@ class CrossVal():
                 else:
                     preds.append(pred)
         
-        plotting.plot_preds.plot_preds_from_device(preds, test_lbl)
+
+        plotting.plot_preds.plot_preds_from_device(preds, test_lbl, filename_prefix=prefix)
 
         ## add metrics reporting later
+    
+    def run_experiment(self, num_runs: int):
+        model_labels = ['model_1', 'model_2', 'model_3', 'model_4']
+
+        for i in range(num_runs):
+            utils.set_seeds.set_experiment_seeds(i)
+            for model_lbl in model_labels:
+                cur_model = self.train_model(self.num_train_epochs, model_lbl)
+                self.set_test_data(model_lbl)
+                for test_seq, test_lbl in zip(self.test_seqs, self.test_lbls):
+                    prefix = f'crossval_{model_lbl}_seed_{i}'
+                    self.test_model(cur_model, test_seq, test_lbl, prefix)
+        
+                
 
 
-
+    def set_test_data(self, model_lbl: str):
+        if model_lbl == 'model_1':
+            self.test_seqs = [self.seq2_tensor, self.seq3_tensor, self.seq4_tensor]
+            self.test_lbls = [self.labels2_tensor, self.labels3_tensor, self.labels4_tensor]
+        elif model_lbl == 'model_2':
+            self.test_seqs = [self.seq1_tensor, self.seq3_tensor, self.seq4_tensor]
+            self.test_lbls = [self.labels1_tensor, self.labels3_tensor, self.labels4_tensor]
+        elif model_lbl == 'model_3':
+            self.test_seqs = [self.seq1_tensor, self.seq2_tensor, self.seq4_tensor]
+            self.test_lbls = [self.labels1_tensor, self.labels2_tensor, self.labels4_tensor]
+        elif model_lbl == 'model_4':
+            self.test_seqs = [self.seq1_tensor, self.seq2_tensor, self.seq3_tensor]
+            self.test_lbls = [self.labels1_tensor, self.labels2_tensor, self.labels3_tensor]
+        else:
+            print('Wrong model label')
+            return False
