@@ -179,6 +179,22 @@ class CrossVal():
                 print('unnormalize_pred(): Incorrect dataset label')
                 return False
             return y_hat, unnormed_labels
+        else:
+            if ds_lbl == 'dataset1':
+                y_hat = preds.numpy() * self.first_piece_std + self.first_piece_mean
+                unnormed_labels = self.labels1_tensor.numpy() * self.first_piece_std + self.first_piece_mean
+            elif ds_lbl == 'dataset2':
+                y_hat = preds.numpy() * self.second_piece_std + self.second_piece_mean
+                unnormed_labels = self.labels2_tensor.numpy() * self.second_piece_std + self.second_piece_mean
+            elif ds_lbl == 'dataset3':
+                y_hat = preds.numpy() * self.third_piece_std + self.third_piece_mean
+                unnormed_labels = self.labels3_tensor.numpy() * self.third_piece_std + self.third_piece_mean
+            elif ds_lbl == 'dataset4':
+                y_hat = preds.numpy() * self.fourth_piece_std + self.fourth_piece_mean
+                unnormed_labels = self.labels4_tensor.numpy() * self.fourth_piece_std + self.fourth_piece_mean
+            else:
+                print('unnormalize_pred(): Incorrect dataset label')
+                return False
 
 
     def set_test_data(self, model_lbl: str):
