@@ -25,3 +25,6 @@ class LSTMModel(nn.Module):
         # out = self.do(out)
         out = self.fc(out[-1, :])  # Take the last 30 time step output
         return out
+
+def create_lstm_single_step():
+    return LSTMModel(input_dim, hidden_dim, num_layers, output_dim)

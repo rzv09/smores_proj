@@ -16,3 +16,4 @@ def set_experiment_seeds(my_seed: int):
     if torch.cuda.is_available():
         torch.cuda.manual_seed(my_seed)
         torch.cuda.manual_seed_all(my_seed)
+    return 1

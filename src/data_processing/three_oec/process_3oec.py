@@ -43,17 +43,17 @@ def make_timeseries(data_path: str):
         end_time = deployment_info["end"]
         if deployment_name == "3oec_2017_7_13_14":
             start_time -= timedelta(seconds=0.125)
-    print(start_time)
+        print(start_time)
 
-    # Calculate total seconds and number of measurements
-    total_seconds = (end_time - start_time).total_seconds() + 0.125
-    num_measurements = int(total_seconds * 8)
+        # Calculate total seconds and number of measurements
+        total_seconds = (end_time - start_time).total_seconds() + 0.125
+        num_measurements = int(total_seconds * 8)
 
-    # Create DatetimeIndex for the deployment
-    date_range = pd.date_range(start=start_time, periods=num_measurements, freq=f'{1000/8}ms')
-    print(date_range[0], date_range[-1])
-    print(len(date_range))
-    date_ranges.append(pd.Series(date_range))
+        # Create DatetimeIndex for the deployment
+        date_range = pd.date_range(start=start_time, periods=num_measurements, freq=f'{1000/8}ms')
+        print(date_range[0], date_range[-1])
+        print(len(date_range))
+        date_ranges.append(pd.Series(date_range))
 
     # Concatenate all DatetimeIndexes
     complete_index = pd.concat(date_ranges)
