@@ -12,6 +12,8 @@ import models.lstm.single_step as lstm_single_step
 import plotting.plot_preds
 import utils
 import utils.set_seeds
+from metrics.np.regression import MARE
+
 class CrossVal():
     def __init__(self, data_path, num_train_epochs, sampling_freq, sequence_len, device):
         self.data_path = data_path
@@ -25,9 +27,17 @@ class CrossVal():
         self.df = process_3oec.resample(process_3oec.make_timeseries(self.data_path), self.sampling_freq)
 
         self.first_piece = process_3oec.get_first_piece(self.df)
+        self.first_piece_mean = self.first_piece.mean()
+        self.first_piece_std = self.first_piece.std()
         self.second_piece = process_3oec.get_second_piece(self.df)
+        self.second_piece_mean = self.second_piece.mean()
+        self.second_piece_std = self.second_piece.std()
         self.third_piece = process_3oec.get_third_piece(self.df)
+        self.third_piece_mean = self.third_piece.mean()
+        self.third_piece_std = self.third_piece.std()
         self.fourth_piece = process_3oec.get_fourth_piece(self.df)
+        self.fourth_piece_mean = self.fourth_piece.mean()
+        self.fourth_piece_std = self.fourth_piece_std()
 
 
         # create train sequences
@@ -79,7 +89,6 @@ class CrossVal():
             train_seq (torch.FloatTensor)
             train_lbl (torch.FloatTensor)
         """
-        self.process_data()
         self.set_train_data(model_label)
 
         model = lstm_single_step.create_lstm_single_step()
@@ -102,7 +111,7 @@ class CrossVal():
         return model
     
     def test_model(self, model: nn.Module, test_seq: torch.FloatTensor, test_lbl: torch.FloatTensor,
-                   prefix: str):
+                   prefix: str, ds_lbl: str):
         """
         Test a trained model
 
@@ -111,6 +120,7 @@ class CrossVal():
             model_lbl (str)
             test_seq (torch.FloatTensor)
             test_lbl (torch.FloatTensor)
+            ds_lbl (str)
         """
         preds = []
         model.eval()
@@ -130,34 +140,62 @@ class CrossVal():
 
         plotting.plot_preds.plot_preds_from_device(preds, test_lbl, filename_prefix=prefix)
 
-        ## add metrics reporting later
+        unnormalized_preds, unnormalized_lbls = self.unnormalize_pred(preds, ds_lbl)
+        error = MARE(unnormalized_preds, unnormalized_lbls)
+
+        # metric computes but needs to be record
+        
+
+
     
     def run_experiment(self, num_runs: int):
         model_labels = ['model_1', 'model_2', 'model_3', 'model_4']
-
+        self.process_data()
         for i in range(num_runs):
             utils.set_seeds.set_experiment_seeds(i)
             for model_lbl in model_labels:
                 cur_model = self.train_model(self.num_train_epochs, model_lbl)
                 self.set_test_data(model_lbl)
-                for test_seq, test_lbl in zip(self.test_seqs, self.test_lbls):
-                    prefix = f'crossval_{model_lbl}_seed_{i}'
+                for test_seq, test_lbl, ds_lbl in zip(self.test_seqs, self.test_lbls, self.dataset_lbls):
+                    prefix = f'{ds_lbl},{model_lbl},seed_{i}'
                     self.test_model(cur_model, test_seq, test_lbl, prefix)
         
                 
+    def unnormalize(self, preds: torch.FloatTensor, ds_lbl: str):
+        if self.device != 'cpu':
+            if ds_lbl == 'dataset1':
+                y_hat = preds.cpu().numpy() * self.first_piece_std + self.first_piece_mean
+                unnormed_labels = self.labels1_tensor.cpu().numpy() * self.first_piece_std + self.first_piece_mean
+            elif ds_lbl == 'dataset2':
+                y_hat = preds.cpu().numpy() * self.second_piece_std + self.second_piece_mean
+                unnormed_labels = self.labels2_tensor.cpu().numpy() * self.second_piece_std + self.second_piece_mean
+            elif ds_lbl == 'dataset3':
+                y_hat = preds.cpu().numpy() * self.third_piece_std + self.third_piece_mean
+                unnormed_labels = self.labels3_tensor.cpu().numpy() * self.third_piece_std + self.third_piece_mean
+            elif ds_lbl == 'dataset4':
+                y_hat = preds.cpu().numpy() * self.fourth_piece_std + self.fourth_piece_mean
+                unnormed_labels = self.labels4_tensor.cpu().numpy() * self.fourth_piece_std + self.fourth_piece_mean
+            else:
+                print('unnormalize_pred(): Incorrect dataset label')
+                return False
+            return y_hat, unnormed_labels
 
 
     def set_test_data(self, model_lbl: str):
         if model_lbl == 'model_1':
+            self.dataset_lbls = ['dataset2', 'dataset3', 'dataset4']
             self.test_seqs = [self.seq2_tensor, self.seq3_tensor, self.seq4_tensor]
             self.test_lbls = [self.labels2_tensor, self.labels3_tensor, self.labels4_tensor]
         elif model_lbl == 'model_2':
+            self.dataset_lbls = ['dataset1', 'dataset3', 'dataset4']
             self.test_seqs = [self.seq1_tensor, self.seq3_tensor, self.seq4_tensor]
             self.test_lbls = [self.labels1_tensor, self.labels3_tensor, self.labels4_tensor]
         elif model_lbl == 'model_3':
+            self.dataset_lbls = ['dataset1', 'dataset2', 'dataset4']
             self.test_seqs = [self.seq1_tensor, self.seq2_tensor, self.seq4_tensor]
             self.test_lbls = [self.labels1_tensor, self.labels2_tensor, self.labels4_tensor]
         elif model_lbl == 'model_4':
+            self.dataset_lbls = ['dataset1', 'dataset2', 'dataset3']
             self.test_seqs = [self.seq1_tensor, self.seq2_tensor, self.seq3_tensor]
             self.test_lbls = [self.labels1_tensor, self.labels2_tensor, self.labels3_tensor]
         else:
