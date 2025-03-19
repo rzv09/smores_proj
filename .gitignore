@@ -1,5 +1,5 @@
 3OEC_current_flow.csv
 ./figures
 **/__pycache__/
-./out
+/out
 .vscode/
