@@ -16,10 +16,14 @@ def plot_preds_from_device(prediction, truth):
     plt.legend()
     plt.show()
 
-def plot_preds_from_device(prediction, truth, filename_prefix='plot', save_dir='./out/temp/'):
+def plot_preds_from_device(prediction, truth, filename_prefix='plot', top_dir='./out/temp/'):
+    if not os.path.exists(top_dir):
+        os.makedirs(top_dir)
+
+    save_dir = os.path.join(top_dir, 'plots')
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
-
+    
     truth_np = truth.cpu().numpy()
     prediction_np = np.array(prediction)
 

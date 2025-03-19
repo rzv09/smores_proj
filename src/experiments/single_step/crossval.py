@@ -111,7 +111,7 @@ class CrossVal():
         
         return model
     
-    def test_model(self, model: nn.Module, test_seq: torch.FloatTensor, test_lbl: torch.FloatTensor,
+    def test_model(self, model: nn.Module, model_lbl: str, seed: int, test_seq: torch.FloatTensor, test_lbl: torch.FloatTensor,
                    prefix: str, ds_lbl: str):
         """
         Test a trained model
@@ -139,13 +139,13 @@ class CrossVal():
                     preds.append(pred)
         
 
-        plotting.plot_preds.plot_preds_from_device(preds, test_lbl, filename_prefix=prefix, save_dir='./out/exp1')
+        plotting.plot_preds.plot_preds_from_device(preds, test_lbl, filename_prefix=prefix, top_dir='./out/exp1')
 
         unnormalized_preds, unnormalized_lbls = self.unnormalize(preds, ds_lbl)
         error = MARE(unnormalized_preds, unnormalized_lbls)
 
         # metric computes but needs to be record
-        write_csv(prefix, ds_lbl, error.item(), save_dir='./out/exp1')
+        write_csv(model_lbl, ds_lbl, seed, error.item(), save_dir='./out/exp1')
 
 
     
@@ -158,8 +158,8 @@ class CrossVal():
                 cur_model = self.train_model(self.num_train_epochs, model_lbl)
                 self.set_test_data(model_lbl)
                 for test_seq, test_lbl, ds_lbl in zip(self.test_seqs, self.test_lbls, self.dataset_lbls):
-                    prefix = f'{ds_lbl},{model_lbl},seed_{i}'
-                    self.test_model(cur_model, test_seq, test_lbl, prefix, ds_lbl)
+                    prefix = f'{model_lbl},seed_{i},{ds_lbl}'
+                    self.test_model(cur_model, model_lbl, i, test_seq, test_lbl, prefix, ds_lbl)
         
                 
     def unnormalize(self, preds: torch.FloatTensor, ds_lbl: str):

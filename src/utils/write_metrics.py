@@ -1,7 +1,7 @@
 import os
 import csv 
 
-def write_csv(prefix: str, ds_lbl: str, error: float, save_dir: str):
+def write_csv(model_lbl: str, ds_lbl: str, seed: int, error: float, save_dir: str):
     csv_file = "metrics.csv"
     file_path = os.path.join(save_dir, csv_file)
     file_exists = os.path.isfile(file_path)
@@ -11,6 +11,6 @@ def write_csv(prefix: str, ds_lbl: str, error: float, save_dir: str):
 
         # Write header only if the file is new
         if not file_exists:
-            writer.writerow(["prefix", "dataset", "MARE"])
+            writer.writerow(["model", "dataset", "seed", "MARE"])
 
-        writer.writerow([prefix, ds_lbl, error])
+        writer.writerow([model_lbl, ds_lbl, seed, error])
