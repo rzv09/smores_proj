@@ -16,7 +16,7 @@ def plot_preds_from_device(prediction, truth):
     plt.legend()
     plt.show()
 
-def plot_preds_from_device(prediction, truth, filename_prefix='plot', save_dir='./out/temp'):
+def plot_preds_from_device(prediction, truth, filename_prefix='plot', save_dir='./out/temp/'):
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
 
