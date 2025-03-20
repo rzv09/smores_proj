@@ -5,6 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 import random
+import os
 
 import data_processing.three_oec.process_3oec as process_3oec
 import data_processing.three_oec.sequences_3oec as sequences_3oec 
@@ -140,7 +141,7 @@ class CrossVal():
                     preds.append(pred)
         
 
-        plotting.plot_preds.plot_preds_from_device(preds, test_lbl, filename_prefix=prefix, top_dir='./out/exp1')
+        plotting.plot_preds.plot_preds_from_device(preds, test_lbl, filename_prefix=prefix, top_dir=save_dir)
 
         unnormalized_preds, unnormalized_lbls = self.unnormalize(preds, ds_lbl)
         error = MARE(unnormalized_preds, unnormalized_lbls)
@@ -151,6 +152,7 @@ class CrossVal():
 
     
     def run_experiment(self, num_runs: int, save_dir : str ='./out/exp1'):
+        os.mkdir(save_dir)
         model_labels = ['model_1', 'model_2', 'model_3', 'model_4']
         self.process_data()
         for i in range(num_runs):
