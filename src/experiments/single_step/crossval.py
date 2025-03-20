@@ -13,7 +13,7 @@ import plotting.plot_preds
 import utils
 import utils.set_seeds
 from metrics.np.regression import MARE
-from utils.write_metrics import write_csv
+from utils.write_metrics import write_csv, write_stats
 
 class CrossVal():
     def __init__(self, data_path, num_train_epochs, sampling_freq, sequence_len, device):
@@ -97,6 +97,8 @@ class CrossVal():
         optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
         criterion = nn.SmoothL1Loss()
 
+        train_losses = []
+
         for epoch in range(num_epochs):
             for k in range(len(self.train_seq)):
                 model.train()
@@ -106,13 +108,15 @@ class CrossVal():
                 loss = criterion(pred, self.train_lbls[k])
                 loss.backward()
                 optimizer.step()
-        # if epoch % 10 == 0:
-            print(f'Model {model_label}, Epoch {epoch}, Train Loss {loss.item()}')
+            
+            train_losses.append(loss.item())
+            if epoch % 10 == 0:
+                print(f'Model {model_label}, Epoch {epoch}, Train Loss {loss.item()}')
         
-        return model
+        return model, train_losses
     
     def test_model(self, model: nn.Module, model_lbl: str, seed: int, test_seq: torch.FloatTensor, test_lbl: torch.FloatTensor,
-                   prefix: str, ds_lbl: str):
+                   prefix: str, ds_lbl: str, train_losses: list,  save_dir: str):
         """
         Test a trained model
 
@@ -125,9 +129,6 @@ class CrossVal():
         """
         preds = []
         model.eval()
-        # temp; will remove
-        # test_seq = self.train_seq
-        # test_lbl = self.train_lbls
         
         with torch.no_grad():
             for i in range(len(test_seq)):
@@ -143,46 +144,29 @@ class CrossVal():
 
         unnormalized_preds, unnormalized_lbls = self.unnormalize(preds, ds_lbl)
         error = MARE(unnormalized_preds, unnormalized_lbls)
-
-        # metric computes but needs to be record
-        write_csv(model_lbl, ds_lbl, seed, error.item(), save_dir='./out/exp1')
+        
+        csv_filepath = write_csv(model_lbl, ds_lbl, seed, error.item(), train_losses, save_dir)
+        return csv_filepath
 
 
     
-    def run_experiment(self, num_runs: int):
+    def run_experiment(self, num_runs: int, save_dir : str ='./out/exp1'):
         model_labels = ['model_1', 'model_2', 'model_3', 'model_4']
         self.process_data()
         for i in range(num_runs):
             utils.set_seeds.set_experiment_seeds(i)
             for model_lbl in model_labels:
-                cur_model = self.train_model(self.num_train_epochs, model_lbl)
+                cur_model, train_losses = self.train_model(self.num_train_epochs, model_lbl)
                 self.set_test_data(model_lbl)
                 for test_seq, test_lbl, ds_lbl in zip(self.test_seqs, self.test_lbls, self.dataset_lbls):
                     prefix = f'{model_lbl},seed_{i},{ds_lbl}'
-                    self.test_model(cur_model, model_lbl, i, test_seq, test_lbl, prefix, ds_lbl)
-        
+                    csv_filepath = self.test_model(cur_model, model_lbl, i, test_seq, test_lbl, prefix, ds_lbl, train_losses, save_dir)
+        write_stats(csv_filepath, save_dir)
+
                 
     def unnormalize(self, preds: torch.FloatTensor, ds_lbl: str):
         preds = torch.FloatTensor(preds)
         preds = preds.cpu()
-        # if self.device != 'cpu':
-        #     if ds_lbl == 'dataset1':
-        #         y_hat = preds.cpu().numpy() * self.first_piece_std + self.first_piece_mean
-        #         unnormed_labels = self.labels1_tensor.cpu().numpy() * self.first_piece_std + self.first_piece_mean
-        #     elif ds_lbl == 'dataset2':
-        #         y_hat = preds.cpu().numpy() * self.second_piece_std + self.second_piece_mean
-        #         unnormed_labels = self.labels2_tensor.cpu().numpy() * self.second_piece_std + self.second_piece_mean
-        #     elif ds_lbl == 'dataset3':
-        #         y_hat = preds.cpu().numpy() * self.third_piece_std + self.third_piece_mean
-        #         unnormed_labels = self.labels3_tensor.cpu().numpy() * self.third_piece_std + self.third_piece_mean
-        #     elif ds_lbl == 'dataset4':
-        #         y_hat = preds.cpu().numpy() * self.fourth_piece_std + self.fourth_piece_mean
-        #         unnormed_labels = self.labels4_tensor.cpu().numpy() * self.fourth_piece_std + self.fourth_piece_mean
-        #     else:
-        #         print('unnormalize_pred(): Incorrect dataset label')
-        #         return False
-        #     return y_hat, unnormed_labels
-        # else:
         if ds_lbl == 'dataset1':
             y_hat = preds.numpy() * self.first_piece_std + self.first_piece_mean
             unnormed_labels = self.labels1_tensor.squeeze(1).cpu().numpy() * self.first_piece_std + self.first_piece_mean
@@ -201,7 +185,12 @@ class CrossVal():
         return y_hat, unnormed_labels
 
 
-    def set_test_data(self, model_lbl: str):
+    def set_test_data(self, model_lbl: str, test_only: bool=False):
+        if not test_only:
+            self.dataset_lbls = ['dataset1', 'dataset2', 'dataset3', 'dataset4']
+            self.test_seqs = [self.seq1_tensor, self.seq2_tensor, self.seq3_tensor, self.seq4_tensor]
+            self.test_lbls = [self.labels1_tensor, self.labels2_tensor, self.labels3_tensor, self.labels4_tensor]
+            return True
         if model_lbl == 'model_1':
             self.dataset_lbls = ['dataset2', 'dataset3', 'dataset4']
             self.test_seqs = [self.seq2_tensor, self.seq3_tensor, self.seq4_tensor]
