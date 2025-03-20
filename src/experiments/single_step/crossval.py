@@ -88,8 +88,6 @@ class CrossVal():
         Args:
             num_epochs (int)
             model_label (str)
-            train_seq (torch.FloatTensor)
-            train_lbl (torch.FloatTensor)
         """
         self.set_train_data(model_label)
 
