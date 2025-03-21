@@ -148,6 +148,7 @@ class FederatedLearning():
                 client_losses = []
                 print(f"Client {i+1}")
                 local_model = lstm_single_step.create_lstm_single_step()
+                local_model.to(self.device)
                 local_model.load_state_dict(global_model.state_dict())
                 optimizer = optim.Adam(local_model.parameters(), lr=1e-4)
                 local_model.train()
@@ -159,7 +160,7 @@ class FederatedLearning():
                     for j in range(len(self.train_seq)):
                         optimizer.zero_grad()
                         pred = local_model(self.train_seq[j])
-                        loss = criterion(pred, self.train_lbls[k])
+                        loss = criterion(pred, self.train_lbls[j])
                         loss.backward()
                         optimizer.step()
                 print(f"Round {round+1}, Client {i+1}, Train Loss {loss.item()}")

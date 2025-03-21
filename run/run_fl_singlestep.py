@@ -8,7 +8,7 @@ from experiments.single_step import federated_learning
 
 def main():
     experiment = federated_learning.FederatedLearning('3OEC_current_flow.csv', 10, 10, 'avg', '5min',
-                                   12, 'mps')
+                                   12, 'cuda')
     save_dir = f"./out/Fl_100epochs_10runs_{datetime.now().strftime('%Y-%m-%d_%H-%M')}"
     experiment.run_experiment(10, save_dir)
 
