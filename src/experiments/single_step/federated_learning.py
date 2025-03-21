@@ -135,7 +135,6 @@ class FederatedLearning():
 
         global_model = lstm_single_step.create_lstm_single_step()
         global_model.to(self.device)
-        optimizer = torch.optim.Adam(global_model.parameters(), lr=1e-4)
         criterion = nn.SmoothL1Loss()
 
         train_losses = {}
@@ -146,7 +145,7 @@ class FederatedLearning():
 
             for i in range(self.num_clients):
                 client_losses = []
-                print(f"Client {i+1}")
+                # print(f"Client {i+1}")
                 local_model = lstm_single_step.create_lstm_single_step()
                 local_model.to(self.device)
                 local_model.load_state_dict(global_model.state_dict())
@@ -154,9 +153,10 @@ class FederatedLearning():
                 local_model.train()
 
                 model_lbl = f"model_{i+1}"
+                self.set_train_data(model_lbl)
 
                 for _ in range(self.num_train_epochs):
-                    self.set_train_data(model_lbl)
+                    
                     for j in range(len(self.train_seq)):
                         optimizer.zero_grad()
                         pred = local_model(self.train_seq[j])
@@ -167,16 +167,17 @@ class FederatedLearning():
                 local_models.append(local_model)
                 client_losses.append(loss.item())
             train_losses[model_label] = client_losses
-        
-        if (self.agg_method == 'fedavg'):
-            global_model = self.fed_avg_weighted(local_models,
+
+            # aggregate at the end of each round
+            if (self.agg_method == 'fedavg'):
+                global_model = self.fed_avg_weighted(local_models,
                                                  [len(self.labels1_tensor), len(self.labels2_tensor), len(self.labels3_tensor)])
-        elif (self.agg_method == 'avg'):
-            global_model = self.fed_avg(local_models)
-        else:
-            print(f"train_model() : unrecognized aggregation method")
-            return 
-        return global_model, client_losses
+            elif (self.agg_method == 'avg'):
+                global_model = self.fed_avg(local_models)
+            else:
+                print(f"train_model() : unrecognized aggregation method")
+                return 
+        return global_model, train_losses
     
     def unnormalize(self, preds: torch.FloatTensor, ds_lbl: str):
         preds = torch.FloatTensor(preds)
