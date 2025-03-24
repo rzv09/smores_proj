@@ -113,6 +113,61 @@ class CrossVal():
                 print(f'Model {model_label}, Epoch {epoch}, Train Loss {loss.item()}')
         
         return model, train_losses
+
+    def train_model_es(self, num_epochs: int, model_label: str, patience: int = 10):
+        """
+        Trains the model with early stopping based on training loss only.
+
+        Args:
+        num_epochs (int): Max number of epochs
+        model_label (str): Label for the model
+        patience (int): Epochs to wait for improvement before stopping
+        """
+        self.set_train_data(model_label)
+
+        model = lstm_single_step.create_lstm_single_step()
+        model.to(self.device)
+        optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
+        criterion = nn.SmoothL1Loss()
+
+        train_losses = []
+
+        best_train_loss = float('inf')
+        epochs_no_improve = 0
+        best_model_state = None
+
+        for epoch in range(num_epochs):
+            model.train()
+            epoch_loss = 0.0
+            for k in range(len(self.train_seq)):
+                optimizer.zero_grad()
+                pred = model(self.train_seq[k])
+                loss = criterion(pred, self.train_lbls[k])
+                loss.backward()
+                optimizer.step()
+                epoch_loss += loss.item()
+        
+            avg_train_loss = epoch_loss / len(self.train_seq)
+            train_losses.append(avg_train_loss)
+
+            if epoch % 10 == 0:
+                print(f'Model {model_label}, Epoch {epoch}, Avg Train Loss {avg_train_loss:.4f}')
+        
+            # ---- Early Stopping ----
+            if avg_train_loss < best_train_loss - 1e-6:  # small delta to avoid stopping on tiny fluctuations
+                best_train_loss = avg_train_loss
+                best_model_state = model.state_dict()
+                epochs_no_improve = 0
+            else:
+                epochs_no_improve += 1
+                if epochs_no_improve >= patience:
+                    print(f"Early stopping at epoch {epoch}. Best Train Loss: {best_train_loss:.4f}")
+                    break
+
+        if best_model_state is not None:
+            model.load_state_dict(best_model_state)
+
+        return model, train_losses
     
     def test_model(self, model: nn.Module, model_lbl: str, seed: int, test_seq: torch.FloatTensor, test_lbl: torch.FloatTensor,
                    prefix: str, ds_lbl: str, train_losses: list,  save_dir: str):
@@ -149,14 +204,17 @@ class CrossVal():
 
 
     
-    def run_experiment(self, num_runs: int, save_dir : str ='./out/exp1'):
+    def run_experiment(self, num_runs: int, save_dir : str ='./out/exp1', early_stop: bool = False):
         os.mkdir(save_dir)
         model_labels = ['model_1', 'model_2', 'model_3', 'model_4']
         self.process_data()
         for i in range(num_runs):
             utils.set_seeds.set_experiment_seeds(i)
             for model_lbl in model_labels:
-                cur_model, train_losses = self.train_model(self.num_train_epochs, model_lbl)
+                if early_stop:
+                    cur_model, train_losses = self.train_model_es(self.num_train_epochs, model_lbl)
+                else:
+                    cur_model, train_losses = self.train_model(self.num_train_epochs, model_lbl)
                 self.set_test_data(model_lbl)
                 for test_seq, test_lbl, ds_lbl in zip(self.test_seqs, self.test_lbls, self.dataset_lbls):
                     prefix = f'{model_lbl},seed_{i},{ds_lbl}'
