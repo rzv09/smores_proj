@@ -14,7 +14,7 @@ import plotting.plot_preds
 import utils
 import utils.set_seeds
 from metrics.np.regression import MARE
-from utils.write_metrics import write_csv, write_stats
+from utils.write_metrics import write_csv, write_stats_mare, write_stats_crit
 
 class CrossVal():
     def __init__(self, data_path, num_train_epochs, sampling_freq, sequence_len, device):
@@ -196,16 +196,24 @@ class CrossVal():
 
         plotting.plot_preds.plot_preds_from_device(preds, test_lbl, filename_prefix=prefix, top_dir=save_dir)
 
+
+        # criterion2(torch.FloatTensor(y_pred).to(device=device), test_tensor_labels_2.squeeze(1)).item()
+
+        l1_smooth_error = nn.SmoothL1Loss()
+        l1_smooth_value = l1_smooth_error(torch.FloatTensor(preds).to(device='cpu'), test_lbl.squeeze(1).to(device='cpu')).item()
+
         unnormalized_preds, unnormalized_lbls = self.unnormalize(preds, ds_lbl)
         error = MARE(unnormalized_preds, unnormalized_lbls)
         
-        csv_filepath = write_csv(model_lbl, ds_lbl, seed, error.item(), train_losses, save_dir)
+        csv_filepath = write_csv(model_lbl, ds_lbl, seed, error.item(), l1_smooth_error, 
+                                 l1_smooth_value, train_losses, save_dir)
         return csv_filepath
 
 
     
     def run_experiment(self, num_runs: int, save_dir : str ='./out/exp1', early_stop: bool = False):
         os.mkdir(save_dir)
+        l1_smooth_error = nn.SmoothL1Loss()
         model_labels = ['model_1', 'model_2', 'model_3', 'model_4']
         self.process_data()
         for i in range(num_runs):
@@ -219,7 +227,9 @@ class CrossVal():
                 for test_seq, test_lbl, ds_lbl in zip(self.test_seqs, self.test_lbls, self.dataset_lbls):
                     prefix = f'{model_lbl},seed_{i},{ds_lbl}'
                     csv_filepath = self.test_model(cur_model, model_lbl, i, test_seq, test_lbl, prefix, ds_lbl, train_losses, save_dir)
-        write_stats(csv_filepath, save_dir)
+        
+        write_stats_mare(csv_filepath, save_dir)
+        write_stats_crit(csv_filepath, save_dir, l1_smooth_error)
 
                 
     def unnormalize(self, preds: torch.FloatTensor, ds_lbl: str):
