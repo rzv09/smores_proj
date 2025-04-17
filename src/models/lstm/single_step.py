@@ -3,7 +3,7 @@ import torch.nn as nn
 
 # Model parameters
 input_dim = 1
-hidden_dim = 256
+hidden_dim = 128
 num_layers = 3
 output_dim = 1
 

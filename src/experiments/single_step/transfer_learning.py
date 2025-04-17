@@ -14,7 +14,7 @@ import plotting.plot_preds
 import utils
 import utils.set_seeds
 from metrics.np.regression import MARE
-from utils.write_metrics import write_csv, write_stats
+from utils.write_metrics import write_csv, write_stats_crit, write_stats_mare
 
 class TransferLearning():
     def __init__(self, data_path: str, num_train_epochs: int, sampling_freq: str, 
@@ -110,6 +110,63 @@ class TransferLearning():
                     print(f"Model {model_label}, Epoch {epoch}, Train Loss {loss.item()}")
         return model, train_losses
     
+    def train_model_es(self, num_epochs: int, model_label: str, patience: int=10):
+        """
+        Trains the model with early stopping based on training loss only
+        
+        Args:
+        num_epochs (int): Max number of epochs
+        model_label (str): Label for the model
+        patience (int): Epochs to wait for improvement before stopping
+        """
+        self.set_train_data(model_label)
+
+        model = lstm_single_step.create_lstm_single_step()
+        model.to(self.device)
+        optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
+        criterion = nn.SmoothL1Loss()
+
+
+        for seq, lbl in zip(self.train_seqs, self.train_lbls):
+            train_losses = []
+            best_train_loss = float('inf')
+            epochs_no_improve = 0
+            best_model_state = None
+            for epoch in range(num_epochs):
+                model.train()
+                epoch_loss = 0.0
+                for k in range(len(seq)):
+                    optimizer.zero_grad()
+                    pred = model(seq[k])
+
+                    loss = criterion(pred, lbl[k])
+                    loss.backward()
+                    optimizer.step()
+                    epoch_loss += loss.item()
+                
+                avg_train_loss = epoch_loss / len(seq)
+                train_losses.append(avg_train_loss)
+
+                if epoch % 10 == 0:
+                    print(f"Model {model_label}, Epoch {epoch}, Avg Train Loss {avg_train_loss:.4f}")
+                
+                # ---- Early Stopping ----
+                if avg_train_loss < best_train_loss - 1e-6:
+                    best_train_loss = avg_train_loss
+                    best_model_state = model.state_dict()
+                    epochs_no_improve = 0
+                else: 
+                    epochs_no_improve += 1
+                    if epochs_no_improve >= patience:
+                        print(f"Early stopping at epoch {epoch}. Best Train Loss: {best_train_loss:.4f}")
+                        break
+
+            if best_model_state is not None:
+                model.load_state_dict(best_model_state)
+        
+        return model, train_losses
+                
+    
     def set_test_data(self, model_lbl: str, test_only: bool = False):
         if not test_only:
             self.dataset_lbls = ['dataset1', 'dataset2', 'dataset3', 'dataset4']
@@ -164,16 +221,21 @@ class TransferLearning():
 
         plotting.plot_preds.plot_preds_from_device(preds, test_lbl, filename_prefix=prefix, top_dir=save_dir)
 
+        l1_smooth_error = nn.SmoothL1Loss()
+        l1_smooth_value = l1_smooth_error(torch.FloatTensor(preds).to(device='cpu'), test_lbl.squeeze(1).to(device='cpu')).item()
+        
         unnormalized_preds, unnormalized_lbls = self.unnormalize(preds, ds_lbl)
         error = MARE(unnormalized_preds, unnormalized_lbls)
         
-        csv_filepath = write_csv(model_lbl, ds_lbl, seed, error.item(), train_losses, save_dir)
+        csv_filepath = write_csv(model_lbl, ds_lbl, seed, error.item(), l1_smooth_error, l1_smooth_value,
+                                  train_losses, save_dir)
         return csv_filepath
 
 
     
     def run_experiment(self, num_runs: int, save_dir : str ='./out/exp1'):
         os.mkdir(save_dir)
+        l1_smooth_error = nn.SmoothL1Loss()
         model_labels = ['model_123', 'model_12', 'model_124']
         self.process_data()
         for i in range(num_runs):
@@ -184,5 +246,6 @@ class TransferLearning():
                 for test_seq, test_lbl, ds_lbl in zip(self.test_seqs, self.test_lbls, self.dataset_lbls):
                     prefix = f'{model_lbl},seed_{i},{ds_lbl}'
                     csv_filepath = self.test_model(cur_model, model_lbl, i, test_seq, test_lbl, prefix, ds_lbl, train_losses, save_dir)
-        write_stats(csv_filepath, save_dir)
+        write_stats_mare(csv_filepath, save_dir)
+        write_stats_crit(csv_filepath, save_dir, l1_smooth_error)
 
