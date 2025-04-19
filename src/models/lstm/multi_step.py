@@ -24,5 +24,5 @@ class LSTMModel(nn.Module):
         out = self.fc1(out[:,-1, :]) # take the last hidden state because we assume it encodes all the information about the sequence
         return out.unsqueeze(2)
 
-def create_lstm_single_step():
+def create_lstm_multi_step():
     return LSTMModel(input_dim, hidden_dim, num_layers, output_dim)
