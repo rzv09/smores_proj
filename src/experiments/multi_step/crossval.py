@@ -61,6 +61,14 @@ class CrossVal():
         self.labels3_tensor = sequences_3oec.make_sequence_tensor(self.train_labels3, self.device)
         self.seq4_tensor = sequences_3oec.make_sequence_tensor(self.train_seq4, self.device)
         self.labels4_tensor = sequences_3oec.make_sequence_tensor(self.train_labels4, self.device)
+
+        self.display_data_size()
+
+    def display_data_size(self):
+        print(f"Dataset 1, Sequece tensor size: {self.seq1_tensor.shape}, Labels tensor size: {self.labels1_tensor.shape}")
+        print(f"Dataset 2, Sequece tensor size: {self.seq2_tensor.shape}, Labels tensor size: {self.labels2_tensor.shape}")
+        print(f"Dataset 3, Sequece tensor size: {self.seq3_tensor.shape}, Labels tensor size: {self.labels3_tensor.shape}")
+        print(f"Dataset 4, Sequece tensor size: {self.seq4_tensor.shape}, Labels tensor size: {self.labels4_tensor.shape}")
         
     def set_train_data(self, model_label: str):
         if model_label == 'model_1':
