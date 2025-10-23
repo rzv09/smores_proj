@@ -8,3 +8,4 @@
 /CSVperOptode
 /CSVperOptode_2
 *.csv
+src/single_step/lightning_logs
