@@ -16,7 +16,7 @@ import utils.set_seeds
 from metrics.np.regression import MARE
 from utils.write_metrics import write_csv, write_stats_mare, write_stats_crit
 
-class CrossVal():
+class CrossValSB():
     def __init__(self, data_path, num_train_epochs, sampling_freq, sequence_len, device):
         self.data_path = data_path
         self.num_train_epochs = num_train_epochs
