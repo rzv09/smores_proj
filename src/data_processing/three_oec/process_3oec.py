@@ -2,8 +2,6 @@
 This file processes the 3OEC dataset https://www.bco-dmo.org/dataset/849934
 """
 
-import numpy as np
-import matplotlib.pyplot as plt
 import pandas as pd
 from datetime import datetime, timedelta
 
