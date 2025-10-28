@@ -17,6 +17,8 @@ import utils
 import utils.set_seeds
 from metrics.np.regression import MARE
 from utils.write_metrics import write_csv, write_stats_mare, write_stats_crit
+from plotting.plot_mare import plot_MARE
+from plotting.plot_smoothl1loss import plot_smooth_l1_loss
 
 class CrossValSBFL():
     def __init__(self, data_path_train, data_path_test, num_train_epochs, sampling_freq, sequence_len, device):
@@ -266,6 +268,8 @@ class CrossValSBFL():
         
         write_stats_mare(csv_filepath, save_dir)
         write_stats_crit(csv_filepath, save_dir, l1_smooth_error)
+        plot_MARE(csv_filepath, save_dir)
+        plot_smooth_l1_loss(csv_filepath, save_dir)
 
                 
     def unnormalize(self, preds: torch.FloatTensor, ds_lbl: str):
