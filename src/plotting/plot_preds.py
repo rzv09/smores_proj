@@ -25,7 +25,7 @@ def plot_preds_from_device(prediction, truth, filename_prefix='plot', top_dir='.
         os.makedirs(save_dir)
     
     truth_np = truth.cpu().numpy()
-    prediction_np = np.array(prediction)
+    prediction_np = np.array(prediction).flatten()
 
     plt.figure(figsize=(10, 5))
     plt.plot(truth_np, label='Actual')
