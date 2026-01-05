@@ -2,8 +2,8 @@ import os
 import csv 
 import pandas as pd
 
-def write_csv(model_lbl: str, ds_lbl: str, seed: int, relative_error: float,  
-              criterion_type, criterion_val: float, loss_history: list, save_dir: str):
+def write_csv(model_lbl: str, ds_lbl: str, seed: int, relative_error: float,  relative_error_baseline: float,
+              criterion_type, criterion_val: float, criterion_val_baseline: float, loss_history: list, save_dir: str):
     csv_file = "metrics.csv"
     file_path = os.path.join(save_dir, csv_file)
     file_exists = os.path.isfile(file_path)
@@ -13,9 +13,11 @@ def write_csv(model_lbl: str, ds_lbl: str, seed: int, relative_error: float,
 
         # Write header only if the file is new
         if not file_exists:
-            writer.writerow(["model", "dataset", "seed", f"{criterion_type}", "MARE", "train_loss"])
+            writer.writerow(["model", "dataset", "seed", f"{criterion_type}", f"{criterion_type}_baseline", "MARE",
+                              "MARE_baseline", "train_loss"])
 
-        writer.writerow([model_lbl, ds_lbl, seed, criterion_val, relative_error, loss_history])
+        writer.writerow([model_lbl, ds_lbl, seed, criterion_val, criterion_val_baseline, relative_error, relative_error_baseline,
+                          loss_history])
     return file_path
 
 

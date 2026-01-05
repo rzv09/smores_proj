@@ -236,18 +236,33 @@ class FederatedLearningSBFL():
                 else:
                     preds.append(pred)
         
+        baseline_preds = self.rolling_average_model(test_seq, 12)
 
-        plotting.plot_preds.plot_preds_from_device(preds, test_lbl, filename_prefix=prefix, top_dir=save_dir)
+        plotting.plot_preds.plot_preds_from_device(preds, baseline_preds, test_lbl, filename_prefix=prefix, top_dir=save_dir)
 
         l1_smooth_error = nn.SmoothL1Loss()
         l1_smooth_value = l1_smooth_error(torch.FloatTensor(preds).to(device='cpu'), test_lbl.squeeze(1).to(device='cpu')).item()
+        l1_smooth_value_baseline = l1_smooth_error(torch.FloatTensor(baseline_preds).to(device='cpu'), test_lbl.squeeze(1).to(device='cpu')).item()
 
         unnormalized_preds, unnormalized_lbls = self.unnormalize(preds, ds_lbl)
+        unnormalized_preds_baseline, _ = self.unnormalize(baseline_preds, ds_lbl)
         error = MARE(unnormalized_preds, unnormalized_lbls)
-        
-        csv_filepath = write_csv(model_lbl, ds_lbl, seed, error.item(), l1_smooth_error, l1_smooth_value,
-                                  train_losses, save_dir)
+        error_baseline = MARE(unnormalized_preds_baseline, unnormalized_lbls)
+        csv_filepath = write_csv(model_lbl, ds_lbl, seed, error.item(), error_baseline.item(), l1_smooth_error,
+                                 l1_smooth_value, l1_smooth_value_baseline, train_losses, save_dir)
         return csv_filepath
+
+    def rolling_average_model(self, test_seq, window_size):
+        """
+        Simple moving avg model that serves as a baseline
+        """
+        
+        preds = []
+        test_seq = test_seq.cpu().numpy()
+        for i in range(len(test_seq)):
+            pred = np.mean(test_seq[i:i+window_size])
+            preds.append(pred)
+        return preds
     
     def unnormalize(self, preds: torch.FloatTensor, ds_lbl: str):
         preds = torch.FloatTensor(preds)

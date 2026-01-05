@@ -47,7 +47,7 @@ class MultiFeatureLSTMModel(nn.Module):
         out = self.fc(out[-1, :])  # Take the last point
         return out
 
-def create_lstm_single_step(input_dim: int = 1, num_features: int = 1, hidden_dim=128, num_layers=3):
+def create_lstm_single_step(input_dim: int = 1, num_features: int = 1, hidden_dim=16, num_layers=1):
     if num_features == 1:
         return LSTMModel(input_dim, hidden_dim, num_layers, output_dim)
     else:

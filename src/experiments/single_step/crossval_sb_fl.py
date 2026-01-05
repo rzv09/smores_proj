@@ -232,19 +232,22 @@ class CrossValSBFL():
                     preds.append(pred)
         
 
-        plotting.plot_preds.plot_preds_from_device(preds, test_lbl, filename_prefix=prefix, top_dir=save_dir)
+        baseline_preds = self.rolling_average_model(test_seq, 12)
+        plotting.plot_preds.plot_preds_from_device(preds, baseline_preds, test_lbl, filename_prefix=prefix, top_dir=save_dir)
 
 
         # criterion2(torch.FloatTensor(y_pred).to(device=device), test_tensor_labels_2.squeeze(1)).item()
 
         l1_smooth_error = nn.SmoothL1Loss()
         l1_smooth_value = l1_smooth_error(torch.FloatTensor(preds).to(device='cpu'), test_lbl.squeeze(1).to(device='cpu')).item()
+        l1_smooth_value_baseline = l1_smooth_error(torch.FloatTensor(baseline_preds).to(device='cpu'), test_lbl.squeeze(1).to(device='cpu')).item()
 
         unnormalized_preds, unnormalized_lbls = self.unnormalize(preds, ds_lbl)
+        unnormalized_preds_baseline, _ = self.unnormalize(baseline_preds, ds_lbl)
         error = MARE(unnormalized_preds, unnormalized_lbls)
-        
-        csv_filepath = write_csv(model_lbl, ds_lbl, seed, error.item(), l1_smooth_error, 
-                                 l1_smooth_value, train_losses, save_dir)
+        error_baseline = MARE(unnormalized_preds_baseline, unnormalized_lbls)
+        csv_filepath = write_csv(model_lbl, ds_lbl, seed, error.item(), error_baseline.item(), l1_smooth_error,
+                                 l1_smooth_value, l1_smooth_value_baseline, train_losses, save_dir)
         return csv_filepath
 
 
@@ -275,16 +278,16 @@ class CrossValSBFL():
     def unnormalize(self, preds: torch.FloatTensor, ds_lbl: str):
         preds = torch.FloatTensor(preds)
         preds = preds.cpu()
-        if ds_lbl == 'florida_dataset1':
+        if ds_lbl == 'fl_dataset1':
             y_hat = preds.numpy() * self.first_piece_test_std + self.first_piece_test_mean
             unnormed_labels = self.fl_labels1_tensor.squeeze(1).cpu().numpy() * self.first_piece_test_std + self.first_piece_test_mean
-        elif ds_lbl == 'florida_dataset2':
+        elif ds_lbl == 'fl_dataset2':
             y_hat = preds.numpy() * self.second_piece_test_std + self.second_piece_test_mean
             unnormed_labels = self.fl_labels2_tensor.squeeze(1).cpu().numpy() * self.second_piece_test_std + self.second_piece_test_mean
-        elif ds_lbl == 'florida_dataset3':
+        elif ds_lbl == 'fl_dataset3':
             y_hat = preds.numpy() * self.third_piece_test_std + self.third_piece_test_mean
             unnormed_labels = self.fl_labels3_tensor.squeeze(1).cpu().numpy() * self.third_piece_test_std + self.third_piece_test_mean
-        elif ds_lbl == 'florida_dataset4':
+        elif ds_lbl == 'fl_dataset4':
             y_hat = preds.numpy() * self.fourth_piece_test_std + self.fourth_piece_test_mean
             unnormed_labels = self.fl_labels4_tensor.squeeze(1).cpu().numpy() * self.fourth_piece_test_std + self.fourth_piece_test_mean
         else:
@@ -292,6 +295,18 @@ class CrossValSBFL():
             return False
         return y_hat, unnormed_labels
 
+    def rolling_average_model(self, test_seq, window_size):
+        """
+        Simple moving avg model that serves as a baseline
+        """
+        
+        preds = []
+        test_seq = test_seq.cpu().numpy()
+        for i in range(len(test_seq)):
+            pred = np.mean(test_seq[i:i+window_size])
+            preds.append(pred)
+        return preds
+    
 
     def set_test_data(self, model_lbl: str, test_only: bool=False):
         # if not test_only:
@@ -299,7 +314,7 @@ class CrossValSBFL():
         #     self.test_seqs = [self.seq1_tensor, self.seq2_tensor, self.seq3_tensor, self.seq4_tensor]
         #     self.test_lbls = [self.labels1_tensor, self.labels2_tensor, self.labels3_tensor, self.labels4_tensor]
         #     return True
-        self.dataset_lbls = ['florida_dataset1', 'florida_dataset2', 'florida_dataset3', 'florida_dataset4']
+        self.dataset_lbls = ['fl_dataset1', 'fl_dataset2', 'fl_dataset3', 'fl_dataset4']
         self.test_seqs = [self.fl1_tensor, self.fl2_tensor, self.fl3_tensor, self.fl4_tensor]
         self.test_lbls = [self.fl_labels1_tensor, self.fl_labels2_tensor, self.fl_labels3_tensor, self.fl_labels4_tensor]
         # if model_lbl == 'model_1':

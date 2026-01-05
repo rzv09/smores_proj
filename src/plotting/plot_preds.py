@@ -16,7 +16,7 @@ def plot_preds_from_device(prediction, truth):
     plt.legend()
     plt.show()
 
-def plot_preds_from_device(prediction, truth, filename_prefix='plot', top_dir='./out/temp/'):
+def plot_preds_from_device(prediction, baseline_prediction, truth, filename_prefix='plot', top_dir='./out/temp/'):
     if not os.path.exists(top_dir):
         os.makedirs(top_dir)
 
@@ -26,10 +26,12 @@ def plot_preds_from_device(prediction, truth, filename_prefix='plot', top_dir='.
     
     truth_np = truth.cpu().numpy()
     prediction_np = np.array(prediction).flatten()
+    baseline_prediction_np = np.array(baseline_prediction).flatten()
 
     plt.figure(figsize=(10, 5))
     plt.plot(truth_np, label='Actual')
-    plt.plot(prediction_np, label='Predicted')
+    plt.plot(prediction_np, label='Predicted LSTM')
+    plt.plot(baseline_prediction_np, label='Prediction Rolling AVG')
     plt.title(filename_prefix)
     plt.legend()
 

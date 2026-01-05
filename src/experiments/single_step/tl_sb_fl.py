@@ -152,6 +152,7 @@ class TransferLearningSBFL():
         # best_train_loss = float('inf')
         # epochs_no_improve = 0
         # best_model_state = None
+        full_train_losses = []
         for seq, lbls in zip(self.train_seqs, self.train_lbls):
             train_losses = []
             best_train_loss = float('inf')
@@ -167,9 +168,12 @@ class TransferLearningSBFL():
                     loss.backward()
                     optimizer.step()
                     epoch_loss += loss.item()
+                # incorrect because adds last loss
+                # full_train_losses.append(loss.item())
         
                 avg_train_loss = epoch_loss / len(seq)
                 train_losses.append(avg_train_loss)
+                full_train_losses.append(avg_train_loss)
 
                 if epoch % 10 == 0:
                     print(f'Model {model_label}, Epoch {epoch}, Avg Train Loss {avg_train_loss:.4f}')
@@ -188,7 +192,7 @@ class TransferLearningSBFL():
             if best_model_state is not None:
                 model.load_state_dict(best_model_state)
 
-        return model, train_losses
+        return model, full_train_losses
     
     def test_model(self, model: nn.Module, model_lbl: str, seed: int, test_seq: torch.FloatTensor, test_lbl: torch.FloatTensor,
                    prefix: str, ds_lbl: str, train_losses: list,  save_dir: str):
@@ -214,24 +218,37 @@ class TransferLearningSBFL():
                 else:
                     preds.append(pred)
         
-
-        plotting.plot_preds.plot_preds_from_device(preds, test_lbl, filename_prefix=prefix, top_dir=save_dir)
+        baseline_preds = self.rolling_average_model(test_seq, 12)
+        plotting.plot_preds.plot_preds_from_device(preds, baseline_preds, test_lbl, filename_prefix=prefix, top_dir=save_dir)
 
 
         # criterion2(torch.FloatTensor(y_pred).to(device=device), test_tensor_labels_2.squeeze(1)).item()
 
         l1_smooth_error = nn.SmoothL1Loss()
         l1_smooth_value = l1_smooth_error(torch.FloatTensor(preds).to(device='cpu'), test_lbl.squeeze(1).to(device='cpu')).item()
+        l1_smooth_value_baseline = l1_smooth_error(torch.FloatTensor(baseline_preds).to(device='cpu'), test_lbl.squeeze(1).to(device='cpu')).item()
 
         unnormalized_preds, unnormalized_lbls = self.unnormalize(preds, ds_lbl)
+        unnormalized_preds_baseline, _ = self.unnormalize(baseline_preds, ds_lbl)
         error = MARE(unnormalized_preds, unnormalized_lbls)
-        
-        csv_filepath = write_csv(model_lbl, ds_lbl, seed, error.item(), l1_smooth_error, 
-                                 l1_smooth_value, train_losses, save_dir)
+        error_baseline = MARE(unnormalized_preds_baseline, unnormalized_lbls)
+        csv_filepath = write_csv(model_lbl, ds_lbl, seed, error.item(), error_baseline.item(), l1_smooth_error,
+                                 l1_smooth_value, l1_smooth_value_baseline, train_losses, save_dir)
         return csv_filepath
 
-
+    def rolling_average_model(self, test_seq, window_size):
+        """
+        Simple moving avg model that serves as a baseline
+        """
+        
+        preds = []
+        test_seq = test_seq.cpu().numpy()
+        for i in range(len(test_seq)):
+            pred = np.mean(test_seq[i:i+window_size])
+            preds.append(pred)
+        return preds
     
+
     def run_experiment(self, num_runs: int, save_dir : str ='./out/exp1', early_stop: bool = False):
         os.mkdir(save_dir)
         l1_smooth_error = nn.SmoothL1Loss()
